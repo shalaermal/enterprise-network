@@ -1,0 +1,26 @@
+# Secrets & credentials
+*.tfvars
+secrets.yml
+vault-password.txt
+.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
