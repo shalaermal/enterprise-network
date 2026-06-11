@@ -1,5 +1,14 @@
 terraform {
   required_version = ">= 1.0"
+
+  cloud {
+    organization = "telcoks-lab"
+
+    workspaces {
+      name = "enterprise-network"
+    }
+  }
+
   required_providers {
     netbox = {
       source  = "e-breuninger/netbox"
@@ -9,6 +18,7 @@ terraform {
 }
 
 provider "netbox" {
-  server_url = "http://81.17.100.252:8000"
-  api_token  = var.netbox_token
+  server_url         = "http://81.17.100.252:8000"
+  api_token          = var.netbox_token
+  skip_version_check = true
 }
