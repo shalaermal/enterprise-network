@@ -1,0 +1,18 @@
+---
+- name: Configure Cisco Routers
+  hosts: cisco_routers
+  gather_facts: no
+  roles:
+    - cisco_base
+
+- name: Configure Cisco Switches
+  hosts: cisco_switches
+  gather_facts: no
+  roles:
+    - cisco_base
+
+- name: Configure Juniper
+  hosts: juniper
+  gather_facts: no
+  roles:
+    - juniper_base
