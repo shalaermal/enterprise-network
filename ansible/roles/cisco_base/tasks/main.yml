@@ -1,0 +1,9 @@
+---
+- name: Get Cisco IOS version
+  cisco.ios.ios_facts:
+    gather_subset: min
+  register: ios_facts
+
+- name: Show device info
+  debug:
+    msg: "Device: {{ inventory_hostname }} | OS: {{ ansible_net_version }}"

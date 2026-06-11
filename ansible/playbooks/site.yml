@@ -1,18 +1,26 @@
 ---
-- name: Configure Cisco Routers
+- name: Verify Cisco Routers connectivity
   hosts: cisco_routers
   gather_facts: no
-  roles:
-    - cisco_base
+  tasks:
+    - name: Ping test
+      cisco.ios.ios_ping:
+        dest: 127.0.0.1
+      register: ping_result
 
-- name: Configure Cisco Switches
+    - name: Show result
+      debug:
+        msg: "{{ inventory_hostname }} is reachable"
+
+- name: Verify Cisco Switches connectivity
   hosts: cisco_switches
   gather_facts: no
-  roles:
-    - cisco_base
+  tasks:
+    - name: Ping test
+      cisco.ios.ios_ping:
+        dest: 127.0.0.1
+      register: ping_result
 
-- name: Configure Juniper
-  hosts: juniper
-  gather_facts: no
-  roles:
-    - juniper_base
+    - name: Show result
+      debug:
+        msg: "{{ inventory_hostname }} is reachable"

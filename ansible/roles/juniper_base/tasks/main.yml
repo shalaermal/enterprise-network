@@ -1,0 +1,9 @@
+---
+- name: Get Juniper facts
+  junipernetworks.junos.junos_facts:
+    gather_subset: min
+  register: junos_facts
+
+- name: Show device info
+  debug:
+    msg: "Device: {{ inventory_hostname }}"
