@@ -1,26 +1,26 @@
 ---
-- name: Verify Cisco Routers connectivity
+- name: Verify Cisco Routers
   hosts: cisco_routers
   gather_facts: no
   tasks:
-    - name: Ping test
-      cisco.ios.ios_ping:
-        dest: 127.0.0.1
-      register: ping_result
+    - name: Get version
+      cisco.ios.ios_command:
+        commands: show version | include IOS
+      register: result
 
     - name: Show result
       debug:
-        msg: "{{ inventory_hostname }} is reachable"
+        msg: "{{ inventory_hostname }}: {{ result.stdout[0] }}"
 
-- name: Verify Cisco Switches connectivity
+- name: Verify Cisco Switches
   hosts: cisco_switches
   gather_facts: no
   tasks:
-    - name: Ping test
-      cisco.ios.ios_ping:
-        dest: 127.0.0.1
-      register: ping_result
+    - name: Get version
+      cisco.ios.ios_command:
+        commands: show version | include IOS
+      register: result
 
     - name: Show result
       debug:
-        msg: "{{ inventory_hostname }} is reachable"
+        msg: "{{ inventory_hostname }}: {{ result.stdout[0] }}"
