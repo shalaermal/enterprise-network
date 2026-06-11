@@ -31,6 +31,9 @@ jobs:
       - name: Ansible Lint
         run: ansible-lint playbooks/site.yml || true
 
+      - name: Install Python dependencies
+        run: pip3 install paramiko ansible-lint
+
       - name: Syntax Check
         run: |
           ansible-playbook playbooks/site.yml \
