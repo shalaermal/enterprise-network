@@ -1,14 +1,14 @@
 terraform {
+  required_version = ">= 1.0"
   required_providers {
     netbox = {
-      source  = "smutel/netbox"
-      version = "~> 7.0"
+      source  = "e-breuninger/netbox"
+      version = "~> 3.0"
     }
   }
 }
 
 provider "netbox" {
-  url    = "81.17.100.252:8000"
-  token  = var.netbox_token
-  scheme = "http"
+  server_url = "http://81.17.100.252:8000"
+  api_token  = var.netbox_token
 }

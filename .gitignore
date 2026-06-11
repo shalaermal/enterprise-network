@@ -2,7 +2,10 @@
 *.tfvars
 secrets.yml
 vault-password.txt
+vault_pass.txt
 .env
+*.vault
+group_vars/all/vault.yml
 
 # Terraform
 .terraform/
@@ -12,6 +15,7 @@ vault-password.txt
 
 # Ansible
 *.retry
+host_vars/*/vault.yml
 
 # IDE
 .idea/
@@ -24,9 +28,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-.env
-*.tfvars
-
-terraform.tfvars
-.env
