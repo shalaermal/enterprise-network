@@ -1,34 +1,32 @@
 ---
 - name: Verify Cisco Routers
   hosts: cisco_routers
-  gather_facts: no
+  gather_facts: false
   connection: network_cli
   vars:
     ansible_network_os: cisco.ios.ios
     ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      cisco.ios.ios_command:
-        commands: show version | include IOS
+      ansible.builtin.command: show version | include IOS
       register: result
 
     - name: Show result
-      debug:
+      ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ result.stdout[0] }}"
 
 - name: Verify Cisco Switches
   hosts: cisco_switches
-  gather_facts: no
+  gather_facts: false
   connection: network_cli
   vars:
     ansible_network_os: cisco.ios.ios
     ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      cisco.ios.ios_command:
-        commands: show version | include IOS
+      ansible.builtin.command: show version | include IOS
       register: result
 
     - name: Show result
-      debug:
+      ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ result.stdout[0] }}"
