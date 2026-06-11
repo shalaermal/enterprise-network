@@ -2,6 +2,10 @@
 - name: Verify Cisco Routers
   hosts: cisco_routers
   gather_facts: no
+  connection: network_cli
+  vars:
+    ansible_network_os: cisco.ios.ios
+    ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
       cisco.ios.ios_command:
@@ -15,6 +19,10 @@
 - name: Verify Cisco Switches
   hosts: cisco_switches
   gather_facts: no
+  connection: network_cli
+  vars:
+    ansible_network_os: cisco.ios.ios
+    ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
       cisco.ios.ios_command:
