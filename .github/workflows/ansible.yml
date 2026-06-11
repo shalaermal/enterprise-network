@@ -12,6 +12,29 @@ on:
     paths:
       - 'ansible/**'
   workflow_dispatch:
+    inputs:
+      target_hosts:
+        description: 'Target hosts/groups'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - cisco_routers
+          - cisco_switches
+          - juniper
+          - mikrotik
+          - pfsense
+      ansible_tags:
+        description: 'Ansible tags (ospf, bgp, vlans, hsrp, ipsec)'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Dry run - check mode only'
+        required: true
+        default: 'true'
+        type: boolean
 
 jobs:
   ansible-lint:
@@ -25,14 +48,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: pip3 install paramiko ansible-lint
+
       - name: Create vault password file
         run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
 
       - name: Ansible Lint
         run: ansible-lint playbooks/site.yml || true
-
-      - name: Install Python dependencies
-        run: pip3 install paramiko ansible-lint
 
       - name: Syntax Check
         run: |
@@ -41,7 +64,7 @@ jobs:
             --vault-password-file .vault_pass \
             --syntax-check
 
-      - name: Cleanup vault file
+      - name: Cleanup
         run: rm -f .vault_pass
         if: always()
 
@@ -49,7 +72,7 @@ jobs:
     name: Deploy Configuration
     runs-on: self-hosted
     needs: ansible-lint
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: production
     defaults:
       run:
@@ -59,6 +82,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: pip3 install paramiko
+
       - name: Create vault password file
         run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
 
@@ -67,9 +93,11 @@ jobs:
           ansible-playbook playbooks/site.yml \
             -i inventory/hosts.yml \
             --vault-password-file .vault_pass \
-            --diff \
+            --limit "${{ github.event.inputs.target_hosts || 'all' }}" \
+            ${{ github.event.inputs.ansible_tags != '' && format('--tags {0}', github.event.inputs.ansible_tags) || '' }} \
+            ${{ github.event.inputs.dry_run != 'false' && '--check --diff' || '--diff' }} \
             -v
 
-      - name: Cleanup vault file
+      - name: Cleanup
         run: rm -f .vault_pass
         if: always()
