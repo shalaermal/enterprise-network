@@ -503,3 +503,11 @@ resource "netbox_prefix" "gjl_lan" {
 
   depends_on = [netbox_site.gjl, netbox_tag.branch]
 }
+resource "netbox_vlan" "test" {
+  name    = "Test"
+  vid     = 60
+  site_id = netbox_site.hq.id
+  status  = "active"
+  tags    = [netbox_tag.hq.name]
+  depends_on = [netbox_site.hq, netbox_tag.hq]
+}
