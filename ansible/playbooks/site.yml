@@ -6,6 +6,8 @@
   vars:
     ansible_network_os: cisco.ios.ios
     ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
+    ansible_paramiko_disabled_algorithms:
+      kex: [ ]
   tasks:
     - name: Get version
       cisco.ios.ios_command:
@@ -24,6 +26,8 @@
   vars:
     ansible_network_os: cisco.ios.ios
     ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
+    ansible_paramiko_disabled_algorithms:
+      kex: [ ]
   tasks:
     - name: Get version
       cisco.ios.ios_command:
