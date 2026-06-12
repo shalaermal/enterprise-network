@@ -47,19 +47,18 @@ resource "netbox_device_interface" "mgmt" {
 }
 
 resource "netbox_ip_address" "mgmt" {
-  for_each       = var.device_mgmt
-  ip_address     = each.value.ip
-  status         = "active"
-  interface_id   = netbox_device_interface.mgmt[each.key].id
+  for_each            = var.device_mgmt
+  ip_address          = each.value.ip
+  status              = "active"
+  device_interface_id = netbox_device_interface.mgmt[each.key].id
 
   depends_on = [netbox_device_interface.mgmt]
 }
 
-resource "netbox_primary_ip" "mgmt" {
-  for_each        = var.device_mgmt
-  device_id       = local.devices[each.key].id
-  ip_address_id   = netbox_ip_address.mgmt[each.key].id
-  ip_address_type = "4"
+resource "netbox_device_primary_ip" "mgmt" {
+  for_each      = var.device_mgmt
+  device_id     = local.devices[each.key].id
+  ip_address_id = netbox_ip_address.mgmt[each.key].id
 
   depends_on = [netbox_ip_address.mgmt]
 }
