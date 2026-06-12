@@ -5,3 +5,4 @@ collections:
   - name: junipernetworks.junos
   - name: community.network
   - name: community.routeros
+  - name: netbox.netbox
