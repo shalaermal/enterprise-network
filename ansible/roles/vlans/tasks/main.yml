@@ -1,0 +1,23 @@
+---
+- name: Fetch VLANs from NetBox for this site
+  ansible.builtin.set_fact:
+    netbox_vlans: "{{ query('netbox.netbox.nb_lookup', 'vlans',
+                      api_endpoint='http://81.17.100.252:8000',
+                      token=lookup('env', 'NETBOX_TOKEN'),
+                      api_filter='site=hq-pristina') }}"
+
+- name: Build VLAN config list for ios_vlans
+  ansible.builtin.set_fact:
+    vlan_config: "{{ vlan_config | default([]) + [{'vlan_id': item.value.vid, 'name': item.value.name}] }}"
+  loop: "{{ netbox_vlans }}"
+  loop_control:
+    label: "{{ item.value.name }}"
+
+- name: Show VLAN config to be applied
+  ansible.builtin.debug:
+    var: vlan_config
+
+- name: Ensure VLANs exist in VLAN database
+  cisco.ios.ios_vlans:
+    config: "{{ vlan_config }}"
+    state: merged
