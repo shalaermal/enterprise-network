@@ -28,6 +28,7 @@
     label: "{{ item.value.name }}"
   when:
     - item.value.mode is defined
+    - item.value.mode is not none
     - item.value.mode.value == 'tagged'
     - item.value.tagged_vlans | length > 0
 
@@ -35,7 +36,7 @@
 # ACCESS PORTS
 # An interface is treated as an access port when NetBox 802.1Q Mode ==
 # "access" AND it has an Untagged VLAN assigned (this becomes the access
-# VLAN of the port).
+# VLAN of the port). Same null-check reasoning as above applies here.
 # -----------------------------------------------------------------------
 - name: Build configuration for access interfaces
   ansible.builtin.set_fact:
@@ -50,6 +51,7 @@
     label: "{{ item.value.name }}"
   when:
     - item.value.mode is defined
+    - item.value.mode is not none
     - item.value.mode.value == 'access'
     - item.value.untagged_vlan is defined
     - item.value.untagged_vlan
