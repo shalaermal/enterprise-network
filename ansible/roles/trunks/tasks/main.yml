@@ -1,0 +1,119 @@
+---
+# =============================================================================
+# Role: trunks
+# Goal : Build the 'config' list expected by cisco.ios.ios_l2_interfaces,
+#        using live interface data pulled from NetBox for THIS host only.
+#
+# How it works, step by step:
+#   1. Ask NetBox (via nb_lookup) for every interface that belongs to the
+#      current device (inventory_hostname).
+#   2. For interfaces where NetBox says "802.1Q Mode = Tagged" -> these are
+#      trunk ports. We read their "Tagged VLANs" list and (optionally) an
+#      "Untagged VLAN" (native VLAN) and build a 'trunk' block.
+#   3. For interfaces where NetBox says "802.1Q Mode = Access" -> these are
+#      access ports. We read their "Untagged VLAN" and build an 'access'
+#      block.
+#   4. Interfaces with no 802.1Q Mode set (e.g. plain L3/management ports
+#      like Gi0/0, or routed point-to-point links) are skipped entirely -
+#      this role never touches them.
+#   5. Finally, cisco.ios.ios_l2_interfaces applies the resulting list with
+#      state: merged, meaning: "ensure these settings are present, but do
+#      not remove/alter anything else already configured on the device".
+#
+# Why this matters in a real company:
+#   - NetBox becomes the single place where "what should this port be doing"
+#     is decided (by network engineers, via a web UI or Terraform).
+#   - Ansible/AWX becomes the "delivery mechanism" that makes the live
+#     network match that intent, on demand.
+#   - Nobody needs to remote into a switch and type 'switchport trunk allow
+#     vlan add 70' by hand - they add VLAN 70 to the interface in NetBox,
+#     then re-run this Job Template.
+# =============================================================================
+
+- name: Fetch all interfaces for this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_interfaces: "{{ query('netbox.netbox.nb_lookup', 'interfaces',
+                            api_endpoint='http://81.17.100.252:8000',
+                            token=lookup('env', 'NETBOX_TOKEN'),
+                            api_filter='device=' + inventory_hostname) }}"
+
+# -----------------------------------------------------------------------
+# TRUNK PORTS
+# An interface is treated as a trunk when NetBox 802.1Q Mode == "tagged".
+# - allowed_vlans  <- NetBox "Tagged VLANs"   (list of VIDs, as strings)
+# - native_vlan    <- NetBox "Untagged VLAN"  (optional; omitted if unset)
+# -----------------------------------------------------------------------
+- name: Build configuration for trunk interfaces
+  ansible.builtin.set_fact:
+    l2_config: "{{ (l2_config | default([])) + [ {
+        'name': item.value.name,
+        'trunk': {
+          'allowed_vlans': item.value.tagged_vlans | map(attribute='vid') | map('string') | list,
+          'native_vlan':   (item.value.untagged_vlan.vid | string)
+                            if (item.value.untagged_vlan is defined and item.value.untagged_vlan)
+                            else omit
+        }
+      } ] }}"
+  loop: "{{ netbox_interfaces }}"
+  loop_control:
+    label: "{{ item.value.name }}"
+  when:
+    - item.value.mode is defined
+    - item.value.mode.value == 'tagged'
+    - item.value.tagged_vlans | length > 0
+
+# -----------------------------------------------------------------------
+# ACCESS PORTS
+# An interface is treated as an access port when NetBox 802.1Q Mode ==
+# "access" AND it has an Untagged VLAN assigned (this becomes the access
+# VLAN of the port).
+# -----------------------------------------------------------------------
+- name: Build configuration for access interfaces
+  ansible.builtin.set_fact:
+    l2_config: "{{ (l2_config | default([])) + [ {
+        'name': item.value.name,
+        'access': {
+          'vlan': item.value.untagged_vlan.vid
+        }
+      } ] }}"
+  loop: "{{ netbox_interfaces }}"
+  loop_control:
+    label: "{{ item.value.name }}"
+  when:
+    - item.value.mode is defined
+    - item.value.mode.value == 'access'
+    - item.value.untagged_vlan is defined
+    - item.value.untagged_vlan
+
+# -----------------------------------------------------------------------
+# Show what we are about to push - very useful when troubleshooting via
+# AWX job output, and harmless to leave in for production (it's just a
+# debug task, no changes are made here).
+# -----------------------------------------------------------------------
+- name: Show the L2 interface configuration that will be applied
+  ansible.builtin.debug:
+    var: l2_config
+
+# -----------------------------------------------------------------------
+# Apply the configuration.
+# state: merged -> only adds/updates the settings listed in 'config'.
+#                   Anything else on the device (description, shutdown
+#                   state, other interfaces, etc.) is left untouched.
+# -----------------------------------------------------------------------
+- name: Apply L2 trunk/access configuration to device
+  cisco.ios.ios_l2_interfaces:
+    config: "{{ l2_config | default([]) }}"
+    state: merged
+  when: (l2_config | default([])) | length > 0
+
+# -----------------------------------------------------------------------
+# If a device has no tagged/access interfaces in NetBox (e.g. it only has
+# its management interface defined so far), make that explicit in the
+# job output instead of silently doing nothing.
+# -----------------------------------------------------------------------
+- name: Note when nothing was configured for this device
+  ansible.builtin.debug:
+    msg: >-
+      No trunk/access interfaces found in NetBox for {{ inventory_hostname }}.
+      Nothing to configure on this device.
+  when: (l2_config | default([])) | length == 0
