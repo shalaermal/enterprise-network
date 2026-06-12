@@ -37,7 +37,7 @@ locals {
   }
 }
 
-resource "netbox_interface" "mgmt" {
+resource "netbox_device_interface" "mgmt" {
   for_each  = var.device_mgmt
   name      = each.value.interface
   device_id = local.devices[each.key].id
@@ -50,10 +50,10 @@ resource "netbox_ip_address" "mgmt" {
   for_each       = var.device_mgmt
   ip_address     = each.value.ip
   status         = "active"
-  interface_id   = netbox_interface.mgmt[each.key].id
+  interface_id   = netbox_device_interface.mgmt[each.key].id
   interface_type = "device"
 
-  depends_on = [netbox_interface.mgmt]
+  depends_on = [netbox_device_interface.mgmt]
 }
 
 resource "netbox_primary_ip" "mgmt" {
