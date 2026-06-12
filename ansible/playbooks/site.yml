@@ -8,12 +8,14 @@
     ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      ansible.builtin.command: show version | include IOS
+      cisco.ios.ios_command:
+        commands:
+          - show version | include IOS
       register: result
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ result.stdout[0] }}"
+        msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0][0] }}"
 
 - name: Verify Cisco Switches
   hosts: cisco_switches
@@ -24,9 +26,11 @@
     ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      ansible.builtin.command: show version | include IOS
+      cisco.ios.ios_command:
+        commands:
+          - show version | include IOS
       register: result
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ result.stdout[0] }}"
+        msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0][0] }}"
