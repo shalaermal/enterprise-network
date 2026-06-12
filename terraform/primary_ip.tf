@@ -51,7 +51,6 @@ resource "netbox_ip_address" "mgmt" {
   ip_address     = each.value.ip
   status         = "active"
   interface_id   = netbox_device_interface.mgmt[each.key].id
-  interface_type = "device"
 
   depends_on = [netbox_device_interface.mgmt]
 }
