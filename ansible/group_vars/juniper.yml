@@ -1,3 +1,0 @@
-ansible_network_os: junipernetworks.junos.junos
-ansible_connection: netconf
-ansible_port: 830
