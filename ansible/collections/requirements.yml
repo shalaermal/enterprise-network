@@ -1,0 +1,7 @@
+---
+collections:
+  - name: ansible.netcommon
+  - name: cisco.ios
+  - name: junipernetworks.junos
+  - name: community.network
+  - name: community.routeros
