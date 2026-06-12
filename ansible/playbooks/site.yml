@@ -1,37 +1,50 @@
----
-- name: Verify Cisco Routers
-  hosts: cisco_routers
+- name: Verify Juniper Edge Router
+  hosts: juniper
   gather_facts: false
   connection: network_cli
   vars:
-    ansible_network_os: cisco.ios.ios
-    ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
+    ansible_network_os: junipernetworks.junos.junos
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      cisco.ios.ios_command:
+      junipernetworks.junos.junos_command:
         commands:
-          - show version | include IOS
+          - show version | match Junos
       register: result
 
     - name: Show result
       ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0][0] }}"
 
-- name: Verify Cisco Switches
-  hosts: cisco_switches
+- name: Verify pfSense Firewall
+  hosts: pfsense
+  gather_facts: false
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  tasks:
+    - name: Get version
+      ansible.builtin.command: pfSsh.php playback pfSense_version
+      register: result
+      changed_when: false
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ result.stdout }}"
+
+- name: Verify MikroTik Router
+  hosts: mikrotik
   gather_facts: false
   connection: network_cli
   vars:
-    ansible_network_os: cisco.ios.ios
-    ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
-    ansible_network_cli_ssh_type: paramiko
+    ansible_network_os: community.routeros.routeros
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      cisco.ios.ios_command:
+      community.routeros.command:
         commands:
-          - show version | include IOS
+          - /system resource print
       register: result
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0][0] }}"
+        msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0] }}"
