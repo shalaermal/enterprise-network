@@ -1,7 +1,7 @@
 ---
 
 - name: Configure L2 trunk/access interfaces from NetBox
-  hosts: device_roles_core-router:device_roles_distribution-switch:device_roles_access-switch:device_roles_dmz-switch
+  hosts: device_roles_distribution-switch:device_roles_access-switch:device_roles_dmz-switch
   gather_facts: false
   connection: network_cli
 
