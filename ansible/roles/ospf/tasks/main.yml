@@ -1,0 +1,89 @@
+---
+# =============================================================================
+# Role: ospf
+# Goal : Enable OSPFv2, process 1, area 0, on this device, advertising:
+#          - its Loopback0 /32 (becomes the OSPF router-id source)
+#          - every P2P link subnet it participates in
+#
+# Source of data: NetBox 'ip-addresses' for this device (same query used by
+# the loopbacks/p2p_interfaces roles). The management interface
+# (GigabitEthernet0/0) is intentionally excluded - we do NOT want OSPF
+# running on the out-of-band management network.
+#
+# How network statements are derived:
+#   For an address like "172.16.255.17/30":
+#     - ipaddr('network')  -> "172.16.255.16"   (the subnet/network address)
+#     - ipaddr('hostmask') -> "0.0.0.3"         (the OSPF wildcard mask)
+#   For a /32 loopback "10.255.255.1/32":
+#     - ipaddr('network')  -> "10.255.255.1"
+#     - ipaddr('hostmask') -> "0.0.0.0"
+#
+#   Both cases produce a valid:
+#     network <network> <wildcard> area 0
+#
+# router-id:
+#   Taken from the Loopback0 address (without the /32 mask). This is the
+#   standard best practice - a stable, always-up source for the OSPF
+#   router-id, independent of any physical interface state.
+# =============================================================================
+
+- name: Fetch IP addresses assigned to this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_ips: "{{ query('netbox.netbox.nb_lookup', 'ip-addresses',
+                     api_endpoint='http://81.17.100.252:8000',
+                     token=lookup('env', 'NETBOX_TOKEN'),
+                     api_filter='device=' + inventory_hostname) }}"
+
+# -----------------------------------------------------------------------
+# router-id <- Loopback0 address, stripped of the /32 mask
+# -----------------------------------------------------------------------
+- name: Derive OSPF router-id from Loopback0
+  ansible.builtin.set_fact:
+    ospf_router_id: "{{ item.value.address | ansible.utils.ipaddr('address') }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name == 'Loopback0'
+
+# -----------------------------------------------------------------------
+# Build 'network <subnet> <wildcard> area 0' lines for Loopback0 + all
+# P2P interfaces. Management (Gi0/0) is excluded - never advertised
+# into OSPF.
+# -----------------------------------------------------------------------
+- name: Build OSPF network statements (Loopback0 + P2P links)
+  ansible.builtin.set_fact:
+    ospf_networks: "{{ (ospf_networks | default([])) + [
+        item.value.address | ansible.utils.ipaddr('network') ~ ' ' ~
+        item.value.address | ansible.utils.ipaddr('hostmask') ~ ' area 0'
+      ] }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name != 'GigabitEthernet0/0'
+
+- name: Show OSPF configuration that will be applied
+  ansible.builtin.debug:
+    msg:
+      router_id: "{{ ospf_router_id | default('NOT FOUND') }}"
+      networks: "{{ ospf_networks | default([]) }}"
+
+# -----------------------------------------------------------------------
+# Apply OSPF configuration.
+# 'router-id' under 'router ospf 1' requires 'clear ip ospf process' (or a
+# reload) to take effect if OSPF was already running with a different
+# router-id - acceptable for initial setup / lab. Re-running this task is
+# idempotent: ios_config only pushes lines that are not already present
+# under the 'router ospf 1' parent.
+# -----------------------------------------------------------------------
+- name: Configure router ospf 1 (router-id + network statements)
+  cisco.ios.ios_config:
+    parents: "router ospf 1"
+    lines: >-
+      {{ ['router-id ' ~ ospf_router_id] + (ospf_networks | map('regex_replace', '^', 'network ') | list) }}
+  when:
+    - ospf_router_id is defined
+    - ospf_networks is defined

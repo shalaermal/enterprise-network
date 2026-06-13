@@ -1,5 +1,6 @@
----
+yaml---
 collections:
+  - name: ansible.utils
   - name: ansible.netcommon
   - name: cisco.ios
   - name: junipernetworks.junos

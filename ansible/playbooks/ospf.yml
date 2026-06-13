@@ -1,0 +1,43 @@
+---
+# =============================================================================
+# Playbook: Configure OSPF (Core)
+# Purpose : Enable OSPFv2 area 0 on the HQ core/distribution devices, using
+#           the Loopback and P2P link addressing already configured via
+#           the "Configure L3 Addressing (Cisco IOS)" playbook.
+#
+# Scope   : HQ-CR-01, HQ-CR-02 (core routers)
+#           HQ-DSW-01, HQ-DSW-02 (L3 distribution switches)
+#
+#           HQ-EDG-PE01 (Juniper) is excluded - OSPF on Juniper uses a
+#           different module/syntax and will be added in a follow-up.
+#
+# Prerequisite: "Configure L3 Addressing (Cisco IOS)" must have been run
+#           first - this playbook assumes Loopback0 and the P2P interfaces
+#           already have their IP addresses from NetBox.
+#
+# Design  : Single role "ospf". For each device, it:
+#             1. Reads the same NetBox IP data used for addressing
+#                (Loopback0 + P2P interfaces, excluding the mgmt interface).
+#             2. Derives router-id from the Loopback0 IP.
+#             3. Derives 'network <subnet> <wildcard> area 0' statements
+#                for every Loopback/P2P subnet.
+#             4. Pushes 'router ospf 1' configuration via ios_config.
+#
+#           Single area (0) design - matches the current flat HQ core
+#           topology. If branch sites are added later with their own
+#           areas, this can be extended with an 'ospf_area' custom field
+#           in NetBox per interface.
+# =============================================================================
+
+- name: Configure OSPF area 0 from NetBox-derived addressing
+  hosts: device_roles_core-router:device_roles_distribution-switch
+  gather_facts: false
+  connection: network_cli
+
+  vars:
+    ansible_network_os: cisco.ios.ios
+    ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
+    ansible_network_cli_ssh_type: paramiko
+
+  roles:
+    - ospf
