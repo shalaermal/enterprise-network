@@ -1,4 +1,4 @@
-yaml---
+---
 collections:
   - name: ansible.utils
   - name: ansible.netcommon
