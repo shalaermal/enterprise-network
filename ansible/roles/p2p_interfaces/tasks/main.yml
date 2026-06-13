@@ -1,0 +1,81 @@
+---
+# =============================================================================
+# Role: p2p_interfaces
+# Goal : Configure the routed point-to-point interfaces (CR<->CR, CR<->DSW)
+#        with the /30 IP addresses allocated in NetBox via
+#        terraform/p2p_links.tf.
+#
+# Source of data: same as the loopbacks role - query NetBox 'ip-addresses'
+# for this device. We then EXCLUDE:
+#   - Loopback0              (handled by the loopbacks role)
+#   - GigabitEthernet0/0     (management interface, primary IP - never
+#                              touched by this role)
+# Everything else with an IP assigned is treated as a routed P2P interface.
+#
+# L3 switches (HQ-DSW-01/02) vs Routers (HQ-CR-01/02):
+#   On Cisco IOS *routers*, interfaces are routed (L3) by default - no
+#   special command is needed before assigning an IP address.
+#   On Cisco IOS *Layer 3 switches*, interfaces default to Layer 2
+#   (switchport). They must be converted to routed mode with
+#   'no switchport' BEFORE an IP address can be assigned.
+#
+#   We detect this using the device's NetBox-derived inventory group:
+#   device_roles_distribution-switch -> needs 'no switchport'
+#   device_roles_core-router         -> already routed, skip
+# =============================================================================
+
+- name: Fetch IP addresses assigned to this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_ips: "{{ query('netbox.netbox.nb_lookup', 'ip-addresses',
+                     api_endpoint='http://81.17.100.252:8000',
+                     token=lookup('env', 'NETBOX_TOKEN'),
+                     api_filter='device=' + inventory_hostname) }}"
+
+- name: Build list of P2P interfaces (exclude Loopback0 and management)
+  ansible.builtin.set_fact:
+    p2p_interfaces: "{{ (p2p_interfaces | default([])) + [ {
+        'name': item.value.assigned_object.name,
+        'address': item.value.address
+      } ] }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name not in ['Loopback0', 'GigabitEthernet0/0']
+
+- name: Show the P2P interface addresses that will be applied
+  ansible.builtin.debug:
+    var: p2p_interfaces
+
+# -----------------------------------------------------------------------
+# On L3 distribution switches, convert each P2P interface to routed mode
+# before assigning an IP. 'no switchport' on a router interface is invalid,
+# so this step only runs for hosts in device_roles_distribution-switch.
+# -----------------------------------------------------------------------
+- name: Convert interfaces to routed mode (no switchport) on L3 switches
+  cisco.ios.ios_config:
+    lines:
+      - "no switchport"
+    parents: "interface {{ item.name }}"
+  loop: "{{ p2p_interfaces | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - "'device_roles_distribution-switch' in group_names"
+    - p2p_interfaces is defined
+
+# -----------------------------------------------------------------------
+# Assign the /30 IP address to each P2P interface.
+# -----------------------------------------------------------------------
+- name: Configure P2P interface IP addresses
+  cisco.ios.ios_l3_interfaces:
+    config:
+      - name: "{{ item.name }}"
+        ipv4:
+          - address: "{{ item.address }}"
+    state: merged
+  loop: "{{ p2p_interfaces | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: p2p_interfaces is defined

@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# Role: loopbacks
+# Goal : Configure Loopback0 with the IP address allocated to it in NetBox
+#        (via terraform/loopbacks.tf). This IP becomes the OSPF/BGP
+#        router-id for this device.
+#
+# Source of data: instead of querying 'interfaces' (which does not return
+# the IP address directly), we query NetBox 'ip-addresses' filtered by
+# device. Each result includes:
+#   - address              -> e.g. "10.255.255.1/32"
+#   - assigned_object.name -> the interface it's attached to, e.g. "Loopback0"
+#
+# We simply find the entry whose interface name is "Loopback0" and apply it.
+# =============================================================================
+
+- name: Fetch IP addresses assigned to this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_ips: "{{ query('netbox.netbox.nb_lookup', 'ip-addresses',
+                     api_endpoint='http://81.17.100.252:8000',
+                     token=lookup('env', 'NETBOX_TOKEN'),
+                     api_filter='device=' + inventory_hostname) }}"
+
+- name: Find the Loopback0 IP address for this device
+  ansible.builtin.set_fact:
+    loopback_ip: "{{ item.value.address }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name == 'Loopback0'
+
+- name: Show the Loopback0 IP that will be applied
+  ansible.builtin.debug:
+    msg: "Loopback0 -> {{ loopback_ip | default('NOT FOUND in NetBox for this device') }}"
+
+# -----------------------------------------------------------------------
+# Apply the loopback IP address.
+# cisco.ios.ios_l3_interfaces accepts the address directly in CIDR form
+# (e.g. "10.255.255.1/32"). state: merged keeps this idempotent - re-running
+# with the same IP makes no changes.
+# -----------------------------------------------------------------------
+- name: Configure Loopback0 IP address
+  cisco.ios.ios_l3_interfaces:
+    config:
+      - name: Loopback0
+        ipv4:
+          - address: "{{ loopback_ip }}"
+    state: merged
+  when: loopback_ip is defined

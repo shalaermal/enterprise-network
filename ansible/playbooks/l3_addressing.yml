@@ -1,0 +1,33 @@
+---
+# =============================================================================
+# Playbook: Configure L3 Addressing (Loopbacks + P2P links)
+# Purpose : Push the Loopback and Point-to-Point interface IP addresses -
+#           already allocated in NetBox via Terraform (loopbacks.tf,
+#           p2p_links.tf) - onto the actual Cisco IOS devices.
+#
+# Design  : Two separate roles, each reading its own slice of NetBox data:
+#             - loopbacks       : configures Loopback0 (router-id source)
+#             - p2p_interfaces  : configures the routed point-to-point
+#                                  links between CR<->CR and CR<->DSW
+#
+#           Both roles are intentionally SEPARATE from "Configure OSPF"
+#           (not written yet). OSPF will assume these IPs already exist -
+#           this mirrors how loopbacks/P2P addressing is also a prerequisite
+#           for BGP later. Keeping "addressing" and "protocol" as different
+#           playbooks means re-running OSPF config never touches IP
+#           addressing, and vice versa.
+# =============================================================================
+
+- name: Configure Loopback and P2P interface addressing from NetBox
+  hosts: device_roles_core-router:device_roles_distribution-switch
+  gather_facts: false
+  connection: network_cli
+
+  vars:
+    ansible_network_os: cisco.ios.ios
+    ansible_ssh_common_args: '-o KexAlgorithms=diffie-hellman-group14-sha1 -o StrictHostKeyChecking=no'
+    ansible_network_cli_ssh_type: paramiko
+
+  roles:
+    - loopbacks
+    - p2p_interfaces
