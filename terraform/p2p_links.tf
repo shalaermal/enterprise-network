@@ -1,0 +1,48 @@
+variable "device_p2p_links" {
+  description = "Routed point-to-point interfaces + IPs for OSPF core links"
+  type = map(object({
+    device    = string # key into local.devices
+    interface = string
+    ip        = string
+  }))
+  default = {
+    # ---- HQ-CR-01 <-> HQ-CR-02 (core link, transit_cr01_cr02 172.16.255.12/30)
+    cr01_to_cr02 = { device = "hq_cr_01", interface = "GigabitEthernet0/2", ip = "172.16.255.13/30" }
+    cr02_to_cr01 = { device = "hq_cr_02", interface = "GigabitEthernet0/2", ip = "172.16.255.14/30" }
+
+    # ---- HQ-CR-01 <-> HQ-DSW-01 (transit_cr01_dsw01 172.16.255.16/30)
+    cr01_to_dsw01 = { device = "hq_cr_01",  interface = "GigabitEthernet0/3", ip = "172.16.255.17/30" }
+    dsw01_to_cr01 = { device = "hq_dsw_01", interface = "GigabitEthernet0/1", ip = "172.16.255.18/30" }
+
+    # ---- HQ-CR-02 <-> HQ-DSW-02 (transit_cr02_dsw02 172.16.255.20/30)
+    cr02_to_dsw02 = { device = "hq_cr_02",  interface = "GigabitEthernet0/3", ip = "172.16.255.21/30" }
+    dsw02_to_cr02 = { device = "hq_dsw_02", interface = "GigabitEthernet0/1", ip = "172.16.255.22/30" }
+  }
+}
+
+# -----------------------------------------------------------------------
+# Create each routed P2P interface.
+# type = "1000BASE-T (1GE)" -> matches the physical interface type used
+# for the other Gigabit links created manually in NetBox yesterday.
+# -----------------------------------------------------------------------
+resource "netbox_device_interface" "p2p" {
+  for_each    = var.device_p2p_links
+  name        = each.value.interface
+  device_id   = local.devices[each.value.device].id
+  type        = "1000base-t"
+  description = "Routed P2P link (OSPF) - ${each.key}"
+
+  depends_on = [local.devices]
+}
+
+# -----------------------------------------------------------------------
+# Assign the /30 IP address to each side of the link.
+# -----------------------------------------------------------------------
+resource "netbox_ip_address" "p2p" {
+  for_each            = var.device_p2p_links
+  ip_address          = each.value.ip
+  status              = "active"
+  device_interface_id = netbox_device_interface.p2p[each.key].id
+
+  depends_on = [netbox_device_interface.p2p]
+}
