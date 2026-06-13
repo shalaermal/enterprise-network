@@ -6,7 +6,7 @@ variable "device_mgmt" {
   }))
   default = {
     hq_edg_pe01   = { interface = "ge-0/0/1",          ip = "192.168.10.1/24" }
-    hq_fw_edge01  = { interface = "vmx0",              ip = "192.168.10.2/24" }
+    hq_fw_edge01  = { interface = "ge-0/0/0",            ip = "192.168.10.2/24" }
     hq_cr_01      = { interface = "GigabitEthernet0/0", ip = "192.168.10.11/24" }
     hq_cr_02      = { interface = "GigabitEthernet0/0", ip = "192.168.10.12/24" }
     hq_dsw_01     = { interface = "GigabitEthernet0/0", ip = "192.168.10.21/24" }

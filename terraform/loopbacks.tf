@@ -9,7 +9,8 @@ variable "device_loopbacks" {
     hq_cr_02    = { interface = "Loopback0", ip = "10.255.255.2/32" }
     hq_dsw_01   = { interface = "Loopback0", ip = "10.255.255.11/32" }
     hq_dsw_02   = { interface = "Loopback0", ip = "10.255.255.12/32" }
-    hq_edg_pe01 = { interface = "lo0",       ip = "10.255.255.3/32" }
+    hq_edg_pe01  = { interface = "lo0", ip = "10.255.255.3/32" }
+    hq_fw_edge01 = { interface = "lo0", ip = "10.255.255.254/32" }
   }
 }
 

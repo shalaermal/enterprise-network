@@ -111,12 +111,12 @@ resource "netbox_device" "hq_edg_pe01" {
 
 resource "netbox_device" "hq_fw_edge01" {
   name           = "HQ-FW-EDGE01"
-  device_type_id = netbox_device_type.pfsense.id
+  device_type_id = netbox_device_type.vsrx.id
   role_id        = netbox_device_role.edge_fw.id
   site_id        = netbox_site.hq.id
   status         = "active"
   tags           = [netbox_tag.hq.name, netbox_tag.edge.name, netbox_tag.bgp.name, netbox_tag.ipsec.name]
-  comments       = "pfSense CE 2.6.0 | AS65002 | ABR Area0/Area10 | Mgmt: 192.168.10.2 | Loopback: 10.255.255.254/32"
+  comments       = "Juniper vSRX | AS65002 | ABR Area0/Area10 | Mgmt: 192.168.10.2 | Loopback: 10.255.255.254/32"
 
   depends_on = [netbox_device_type.pfsense, netbox_device_role.edge_fw, netbox_site.hq]
 }
