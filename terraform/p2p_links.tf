@@ -19,17 +19,22 @@ variable "device_p2p_links" {
     dsw02_to_cr02 = { device = "hq_dsw_02", interface = "GigabitEthernet0/1", ip = "172.16.255.22/30" }
 
     # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-EDG-PE01 (transit_pe_pfsense 172.16.255.0/30)
-    fw_to_pe   = { device = "hq_fw_edge01", interface = "ge-0/0/1", ip = "172.16.255.2/30" }
+    # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-EDG-PE01 (transit_pe_pfsense 172.16.255.0/30)
+    # EVE-NG: vSRX ge-0/0/3 <-> EDG-PE01 ge-0/0/1
+    fw_to_pe   = { device = "hq_fw_edge01", interface = "ge-0/0/3", ip = "172.16.255.2/30" }
 
     # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-CR-01 (transit_pfsense_cr01 172.16.255.4/30)
-    fw_to_cr01 = { device = "hq_fw_edge01", interface = "ge-0/0/2", ip = "172.16.255.5/30" }
+    # EVE-NG: vSRX ge-0/0/1 <-> CR-01 Gi0/1
+    fw_to_cr01 = { device = "hq_fw_edge01", interface = "ge-0/0/1", ip = "172.16.255.5/30" }
     cr01_to_fw = { device = "hq_cr_01",     interface = "GigabitEthernet0/1", ip = "172.16.255.6/30" }
 
     # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-CR-02 (transit_pfsense_cr02 172.16.255.8/30)
-    fw_to_cr02 = { device = "hq_fw_edge01", interface = "ge-0/0/3", ip = "172.16.255.9/30" }
+    # EVE-NG: vSRX ge-0/0/2 <-> CR-02 Gi0/1
+    fw_to_cr02 = { device = "hq_fw_edge01", interface = "ge-0/0/2", ip = "172.16.255.9/30" }
     cr02_to_fw = { device = "hq_cr_02",     interface = "GigabitEthernet0/1", ip = "172.16.255.10/30" }
 
     # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-DMZ-SW01 (transit_pfsense_dmz 172.16.255.28/30)
+    # EVE-NG: vSRX ge-0/0/4 <-> DMZ-SW01 Gi0/1
     fw_to_dmz  = { device = "hq_fw_edge01", interface = "ge-0/0/4", ip = "172.16.255.29/30" }
     dmz_to_fw  = { device = "hq_dmz_sw01",  interface = "GigabitEthernet0/1", ip = "172.16.255.30/30" }
   }
