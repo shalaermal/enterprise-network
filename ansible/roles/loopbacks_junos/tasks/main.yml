@@ -1,0 +1,47 @@
+---
+# =============================================================================
+# Role: loopbacks_junos
+# Goal : Configure the lo0 loopback IP address on Juniper devices, using
+#        the same NetBox data source as the Cisco 'loopbacks' role.
+#
+# Juniper difference vs Cisco:
+#   - Interface name is 'lo0' (not 'Loopback0')
+#   - Module: junipernetworks.junos.junos_l3_interfaces
+#   - Connection: netconf (set in playbook)
+#   - The /32 prefix must be expressed as a host address - Junos accepts
+#     CIDR notation directly in junos_l3_interfaces.
+# =============================================================================
+
+- name: Fetch IP addresses assigned to this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_ips: "{{ query('netbox.netbox.nb_lookup', 'ip-addresses',
+                     api_endpoint='http://81.17.100.252:8000',
+                     token=lookup('env', 'NETBOX_TOKEN'),
+                     api_filter='device=' + inventory_hostname) }}"
+
+- name: Find the lo0 loopback IP address for this device
+  ansible.builtin.set_fact:
+    loopback_ip: "{{ item.value.address }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name == 'lo0'
+
+- name: Show lo0 IP that will be applied
+  ansible.builtin.debug:
+    msg: "lo0 -> {{ loopback_ip | default('NOT FOUND in NetBox') }}"
+
+# -----------------------------------------------------------------------
+# Apply lo0 IP via junipernetworks.junos.junos_l3_interfaces.
+# state: merged -> idempotent, only adds/updates, never removes.
+# -----------------------------------------------------------------------
+- name: Configure lo0 loopback IP address
+  junipernetworks.junos.junos_l3_interfaces:
+    config:
+      - name: lo0
+        ipv4:
+          - address: "{{ loopback_ip }}"
+    state: merged
+  when: loopback_ip is defined

@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# Role: p2p_interfaces_junos
+# Goal : Configure the routed P2P interface IPs on Juniper devices (vSRX
+#        HQ-FW-EDGE01 and vSRX HQ-EDG-PE01) using NetBox as source of truth.
+#
+# Source of data: NetBox ip-addresses for this device, excluding:
+#   - lo0          (handled by loopbacks_junos role)
+#   - ge-0/0/0     (management interface, bootstrap - never touched here)
+#
+# Juniper difference vs Cisco:
+#   - No 'no switchport' needed (Junos interfaces are routed by default)
+#   - Module: junipernetworks.junos.junos_l3_interfaces
+#   - Interface unit must be specified (unit 0 = .0 subinterface)
+#   - Connection: netconf (set in playbook)
+# =============================================================================
+
+- name: Fetch IP addresses assigned to this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_ips: "{{ query('netbox.netbox.nb_lookup', 'ip-addresses',
+                     api_endpoint='http://81.17.100.252:8000',
+                     token=lookup('env', 'NETBOX_TOKEN'),
+                     api_filter='device=' + inventory_hostname) }}"
+
+- name: Build list of P2P interfaces (exclude lo0 and management ge-0/0/0)
+  ansible.builtin.set_fact:
+    p2p_interfaces: "{{ (p2p_interfaces | default([])) + [ {
+        'name': item.value.assigned_object.name,
+        'address': item.value.address
+      } ] }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name not in ['lo0', 'ge-0/0/0']
+
+- name: Show P2P interface addresses that will be applied
+  ansible.builtin.debug:
+    var: p2p_interfaces
+
+# -----------------------------------------------------------------------
+# Apply P2P IP addresses via junipernetworks.junos.junos_l3_interfaces.
+# Junos interfaces are routed by default - no 'no switchport' equivalent
+# needed. state: merged is idempotent.
+# -----------------------------------------------------------------------
+- name: Configure P2P interface IP addresses
+  junipernetworks.junos.junos_l3_interfaces:
+    config:
+      - name: "{{ item.name }}"
+        ipv4:
+          - address: "{{ item.address }}"
+    state: merged
+  loop: "{{ p2p_interfaces | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: p2p_interfaces is defined

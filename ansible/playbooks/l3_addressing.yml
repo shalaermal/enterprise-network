@@ -3,22 +3,26 @@
 # Playbook: Configure L3 Addressing (Loopbacks + P2P links)
 # Purpose : Push the Loopback and Point-to-Point interface IP addresses -
 #           already allocated in NetBox via Terraform (loopbacks.tf,
-#           p2p_links.tf) - onto the actual Cisco IOS devices.
+#           p2p_links.tf) - onto devices.
 #
-# Design  : Two separate roles, each reading its own slice of NetBox data:
-#             - loopbacks       : configures Loopback0 (router-id source)
-#             - p2p_interfaces  : configures the routed point-to-point
-#                                  links between CR<->CR and CR<->DSW
+# Platform split:
+#   Play 1 - Cisco IOS  : core routers + distribution switches
+#             roles: loopbacks, p2p_interfaces (ios_l3_interfaces)
+#   Play 2 - Juniper    : edge firewall (HQ-FW-EDGE01) + edge PE (HQ-EDG-PE01)
+#             roles: loopbacks_junos, p2p_interfaces_junos (junos_interfaces)
 #
-#           Both roles are intentionally SEPARATE from "Configure OSPF"
-#           (not written yet). OSPF will assume these IPs already exist -
-#           this mirrors how loopbacks/P2P addressing is also a prerequisite
-#           for BGP later. Keeping "addressing" and "protocol" as different
-#           playbooks means re-running OSPF config never touches IP
-#           addressing, and vice versa.
+# Both plays use the same NetBox-driven pattern (nb_lookup ip-addresses),
+# only the Ansible modules differ per vendor. OSPF is intentionally kept
+# in a separate playbook - this playbook only handles IP addressing.
+#
+# Scope control: use Limit at launch time to target specific devices or
+# groups (e.g. Limit=HQ-FW-EDGE01 to run only Juniper edge firewall).
 # =============================================================================
 
-- name: Configure Loopback and P2P interface addressing from NetBox
+# ---------------------------------------------------------------------------
+# Play 1 - Cisco IOS: core routers + L3 distribution switches
+# ---------------------------------------------------------------------------
+- name: Configure L3 addressing (Cisco IOS) - loopbacks and P2P links
   hosts: device_roles_core-router:device_roles_distribution-switch
   gather_facts: false
   connection: network_cli
@@ -31,3 +35,22 @@
   roles:
     - loopbacks
     - p2p_interfaces
+
+# ---------------------------------------------------------------------------
+# Play 2 - Juniper JunOS: edge firewall + edge PE
+# Connection: netconf (standard for Junos automation, more reliable than
+# SSH CLI for structured config changes - junipernetworks.junos collection
+# requires netconf to be enabled on the device, which is done in bootstrap).
+# ---------------------------------------------------------------------------
+- name: Configure L3 addressing (Juniper JunOS) - loopbacks and P2P links
+  hosts: device_roles_edge-firewall:device_roles_edge-pe
+  gather_facts: false
+  connection: netconf
+
+  vars:
+    ansible_network_os: junos
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+  roles:
+    - loopbacks_junos
+    - p2p_interfaces_junos
