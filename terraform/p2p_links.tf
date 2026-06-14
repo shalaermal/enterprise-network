@@ -22,6 +22,7 @@ variable "device_p2p_links" {
     # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-EDG-PE01 (transit_pe_pfsense 172.16.255.0/30)
     # EVE-NG: vSRX ge-0/0/3 <-> EDG-PE01 ge-0/0/1
     fw_to_pe   = { device = "hq_fw_edge01", interface = "ge-0/0/3", ip = "172.16.255.2/30" }
+    pe_to_fw   = { device = "hq_edg_pe01", interface = "ge-0/0/1", ip = "172.16.255.1/30" }
 
     # ---- HQ-FW-EDGE01 (vSRX) <-> HQ-CR-01 (transit_pfsense_cr01 172.16.255.4/30)
     # EVE-NG: vSRX ge-0/0/1 <-> CR-01 Gi0/1
