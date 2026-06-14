@@ -63,12 +63,20 @@
 # but must be advertised into OSPF for reachability of router-id).
 # P2P interfaces go into area 0.0.0.0 as active (form adjacencies).
 # -----------------------------------------------------------------------
+- name: Build OSPF config lines
+  ansible.builtin.set_fact:
+    ospf_config_lines: >-
+      {{ ['set routing-options router-id ' + ospf_router_id,
+          'set protocols ospf area 0.0.0.0 interface lo0.0 passive'] +
+         ospf_interfaces | map('regex_replace', '^(.*)$', 'set protocols ospf area 0.0.0.0 interface \1.0') | list }}
+
+- name: Show OSPF config lines that will be pushed
+  ansible.builtin.debug:
+    var: ospf_config_lines
+
 - name: Configure OSPF area 0 and router-id
   junipernetworks.junos.junos_config:
-    lines:
-      - "set routing-options router-id {{ ospf_router_id }}"
-      - "set protocols ospf area 0.0.0.0 interface lo0.0 passive"
-      - "{% for iface in ospf_interfaces %}set protocols ospf area 0.0.0.0 interface {{ iface }}.0{% if not loop.last %}\n{% endif %}{% endfor %}"
+    lines: "{{ ospf_config_lines }}"
   when:
     - ospf_router_id is defined
     - ospf_interfaces is defined
