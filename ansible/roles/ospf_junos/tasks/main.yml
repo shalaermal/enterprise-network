@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# Role: ospf_junos
+# Goal : Enable OSPFv2 area 0 on Juniper vSRX devices, using the same
+#        NetBox IP data as the loopbacks_junos/p2p_interfaces_junos roles.
+#
+# router-id  <- lo0 IP address (stripped of /32)
+# network statements <- all IPs except ge-0/0/0 (mgmt) and lo0
+#                       (lo0 is advertised via export policy, not network stmt)
+#
+# Juniper OSPF difference vs Cisco:
+#   - OSPF is configured under [edit protocols ospf]
+#   - Interfaces are added explicitly (not via 'network' command)
+#   - router-id goes under [edit routing-options]
+#   - Module: junipernetworks.junos.junos_config (raw config push)
+#     junos_ospfv2 resource module exists but is limited - raw config
+#     via junos_config gives full control and matches how Junos engineers
+#     actually configure OSPF.
+# =============================================================================
+
+- name: Fetch IP addresses assigned to this device from NetBox
+  ansible.builtin.set_fact:
+    netbox_ips: "{{ query('netbox.netbox.nb_lookup', 'ip-addresses',
+                     api_endpoint='http://81.17.100.252:8000',
+                     token=lookup('env', 'NETBOX_TOKEN'),
+                     api_filter='device=' + inventory_hostname) }}"
+
+# -----------------------------------------------------------------------
+# router-id <- lo0 IP (without /32)
+# -----------------------------------------------------------------------
+- name: Derive OSPF router-id from lo0
+  ansible.builtin.set_fact:
+    ospf_router_id: "{{ item.value.address | ansible.utils.ipaddr('address') }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name == 'lo0'
+
+# -----------------------------------------------------------------------
+# Build list of P2P interfaces for OSPF (exclude lo0 and mgmt ge-0/0/0)
+# -----------------------------------------------------------------------
+- name: Build OSPF interface list (P2P links only)
+  ansible.builtin.set_fact:
+    ospf_interfaces: "{{ (ospf_interfaces | default([])) + [item.value.assigned_object.name] }}"
+  loop: "{{ netbox_ips }}"
+  loop_control:
+    label: "{{ item.value.address }}"
+  when:
+    - item.value.assigned_object is defined
+    - item.value.assigned_object.name not in ['lo0', 'ge-0/0/0']
+
+- name: Show OSPF configuration that will be applied
+  ansible.builtin.debug:
+    msg:
+      router_id: "{{ ospf_router_id | default('NOT FOUND') }}"
+      ospf_interfaces: "{{ ospf_interfaces | default([]) }}"
+
+# -----------------------------------------------------------------------
+# Apply OSPF configuration via junos_config (set-format lines).
+# lo0.0 is added with passive=true (loopback should not form adjacencies,
+# but must be advertised into OSPF for reachability of router-id).
+# P2P interfaces go into area 0.0.0.0 as active (form adjacencies).
+# -----------------------------------------------------------------------
+- name: Configure OSPF area 0 and router-id
+  junipernetworks.junos.junos_config:
+    lines:
+      - "set routing-options router-id {{ ospf_router_id }}"
+      - "set protocols ospf area 0.0.0.0 interface lo0.0 passive"
+      - "{% for iface in ospf_interfaces %}set protocols ospf area 0.0.0.0 interface {{ iface }}.0{% if not loop.last %}\n{% endif %}{% endfor %}"
+  when:
+    - ospf_router_id is defined
+    - ospf_interfaces is defined
+  vars:
+    ansible_command_timeout: 120

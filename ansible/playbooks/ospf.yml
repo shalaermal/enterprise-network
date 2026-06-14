@@ -41,3 +41,20 @@
 
   roles:
     - ospf
+
+# ---------------------------------------------------------------------------
+# Play 2 - Juniper JunOS: edge firewall (HQ-FW-EDGE01) + edge PE (HQ-EDG-PE01)
+# Prerequisite: "Configure L3 Addressing" must have run first for these
+# devices so that ge-0/0/x and lo0 IPs already exist on the device.
+# ---------------------------------------------------------------------------
+- name: Configure OSPF area 0 (Juniper JunOS)
+  hosts: device_roles_edge-firewall:device_roles_edge-pe
+  gather_facts: false
+  connection: netconf
+
+  vars:
+    ansible_network_os: junos
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+  roles:
+    - ospf_junos
