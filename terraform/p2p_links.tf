@@ -65,4 +65,4 @@ resource "netbox_ip_address" "p2p" {
   device_interface_id = netbox_device_interface.p2p[each.key].id
 
   depends_on = [netbox_device_interface.p2p]
-}
+}# Last updated: Sun Jun 14 20:21:04 UTC 2026
