@@ -45,3 +45,5 @@
           - address: "{{ loopback_ip }}"
     state: merged
   when: loopback_ip is defined
+  vars:
+    ansible_command_timeout: 120
