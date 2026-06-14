@@ -55,20 +55,23 @@
       ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0][0] }}"
 
-- name: Verify pfSense Firewall
+- name: Verify Juniper Edge Firewall
   hosts: device_roles_edge-firewall
   gather_facts: false
+  connection: network_cli
   vars:
+    ansible_network_os: junipernetworks.junos.junos
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
     - name: Get version
-      ansible.builtin.command: pfSsh.php playback pfSense_version
+      junipernetworks.junos.junos_command:
+        commands:
+          - show version | match Junos
       register: result
-      changed_when: false
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ result.stdout }}"
+        msg: "{{ inventory_hostname }}: {{ result.stdout_lines[0][0] }}"
 
 - name: Verify MikroTik Router
   hosts: device_roles_branch-router
